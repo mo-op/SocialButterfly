@@ -107,7 +107,7 @@ def showPage(user_id):
 	if user_id != 1:
 		posts_user = get_all_posts(user_id)
 		if posts_user:
-			for post in posts:
+			for post in posts_user:
 				row_count += 2
 				user = get_user_first_name(user_id)+" "+get_user_last_name(user_id)
 				lbl3 = tk.Label(tab1, text=user,font=("Helvetica", 12,'bold'),anchor='w',borderwidth=2, relief="groove").grid(row=row_count)
@@ -132,7 +132,6 @@ def showPage(user_id):
 	lbl16 = tk.Label(tab2,text=get_user_gender(user_id)).grid(row=9,column=3)
 	lbl17 = tk.Label(tab2, text=get_user_location(user_id)).grid(row=10,column=3)
 
-
 	friends = get_friends_list(user_id)
 	print friends
 	row_count_3 = 4
@@ -142,6 +141,12 @@ def showPage(user_id):
 			user = get_user_first_name(f)+" "+get_user_last_name(f)
 			lbl19 = tk.Label(tab3, text=user,font=("Helvetica", 12),anchor='w',borderwidth=2, relief="groove").grid(row=row_count_3+1)
 			row_count_3 += 2
+	lbl20 = tk.Label(tab3, text="Add Friend",font=("Helvetica", 12)).grid(row=row_count_3,column=0)		
+	tb9 = tk.Entry(tab3)
+	tb9.grid(row=row_count_3,column=1) 
+	btn3 = tk.Button(tab3, text="Request",command=lambda:request_friendship(user_id, tb9.get())).grid(row=row_count_3,column=3)
+
+
 ###################################################################################################################
 '''definition of redis based functions'''
 def create_user(u,p,f,l,a,g,lo):
@@ -164,7 +169,7 @@ def create_user(u,p,f,l,a,g,lo):
     if count != 1:
     	print ("Sending default requests")
     	request_friendship(count, 1)
-    	accept_friend_request(1,count)
+    	#accept_friend_request(1,count)
     #r.lpush(new_user,'updates','This is a default update!')
     if u != "test":
     	showPage(count)
@@ -276,6 +281,7 @@ def request_friendship(user_id ,friend_id):
 
     r.lpush('user:'+str(user_id)+".friendsRequestsSent",friend_id)
     r.lpush('user:'+str(user_id)+".friendsRequestsSent",friend_id)
+    accept_friend_request(friend_id,user_id)
 
 def accept_friend_request(friend_id,user_id):    
 
@@ -323,6 +329,7 @@ current_window = None
 
 #test user to check login as the app doesn't implement persistence
 create_user("test","test","Doctor","Who",1000,"female","TARDIS")
+create_user("test2","test","River","Song",200,"female","TARDIS")
 uid = get_user_by_username("test")
 #test user to create posts
 update_status(uid,'Loving this site already! Hear my screwdriver go zzzzz...')
