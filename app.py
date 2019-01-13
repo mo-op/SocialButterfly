@@ -9,9 +9,8 @@ r = redis.Redis(
     host = 'localhost',
     port=6379)
 
-
- #window.iconbitmap('butterfly.png')
-
+row_count = 10
+user_count = 0
 
 '''definition of gui functions'''
 
@@ -26,7 +25,7 @@ def replace_window(root):
 	return current_window
 
 def showHome(root):
-	print ("Loading home page")
+
 	window = replace_window(root)
 	window.title("Social Butterfly!")
 	window.configure(bg="lightblue")
@@ -71,18 +70,16 @@ def showHome(root):
 	tb9 = tk.Entry(window)
 	tb9.grid(row=16,column=1)
 
-	btn2 = tk.Button(window,text="REGISTER",command=lambda:create_user(tb3.get(),tb4.get(),tb5.get(),tb6.get(),tb7.get(),tb8.get(),tb9.get(),window)).grid(row=18,column=0)
+	btn2 = tk.Button(window,text="REGISTER",command=lambda:create_user(tb3.get(),tb4.get(),tb5.get(),tb6.get(),tb7.get(),tb8.get(),tb9.get())).grid(row=18,column=0)
 	
-
 def showPage(user_id):
+
 	global root
-	print ("Loading user screen")
 	window = replace_window(root)
 	window.title("Social Butterfly!")
 	window.configure(bg="lightblue")
 	window.geometry("750x500")
 	username = get_user_by_id(user_id)
-
 	tab_control = ttk.Notebook(window)
 	tab1 = ttk.Frame(tab_control)
 	tab2 = ttk.Frame(tab_control)
@@ -91,6 +88,31 @@ def showPage(user_id):
 	tab_control.add(tab2, text='Profile')
 	tab_control.add(tab3, text='Friends')
 	tab_control.pack(expand=1, fill='both')
+
+	row_count = 10
+
+	lbl1 = tk.Label(tab1, text="New Post",font=("Helvetica", 12)).grid(row=3,column=0)
+	tb1 = tk.Text(tab1,height=5)
+	tb1.grid(row=4,column=0)
+	btn1 = tk.Button(tab1, text="POST",command=lambda:new_post(user_id, tb1.get("1.0","end"))).grid(row=5,column=4)
+
+	posts = get_all_posts(1)	
+
+	for post in posts:
+		row_count += 2
+		user = get_user_first_name(1)+" "+get_user_last_name(1)
+		lbl3 = tk.Label(tab1, text=user,font=("Helvetica", 12,'bold'),anchor='w',borderwidth=2, relief="groove").grid(row=row_count)
+		lbl4 = tk.Label(tab1, text=post,font=("Helvetica", 12),anchor='w',borderwidth=2, relief="groove").grid(row=row_count+1)
+
+	if user_id != 1:
+		posts_user = get_all_posts(user_id)
+		if posts_user:
+			for post in posts:
+				row_count += 2
+				user = get_user_first_name(user_id)+" "+get_user_last_name(user_id)
+				lbl3 = tk.Label(tab1, text=user,font=("Helvetica", 12,'bold'),anchor='w',borderwidth=2, relief="groove").grid(row=row_count)
+				lbl4 = tk.Label(tab1, text=post,font=("Helvetica", 12),anchor='w',borderwidth=2, relief="groove").grid(row=row_count+1)
+
 
 	# lbl2 = tk.Label(tab1, text="Updates",font=("Helvetica", 10)).grid(column=0, row=2)
 	# lbl3 = tk.Label(tab2, text="Profile",font=("Helvetica", 10)).grid(column=2,row=2)
@@ -111,22 +133,25 @@ def showPage(user_id):
 	lbl17 = tk.Label(tab2, text=get_user_location(user_id)).grid(row=10,column=3)
 
 
-
-
+	friends = get_friends_list(user_id)
+	print friends
+	row_count_3 = 4
+	lbl18 = tk.Label(tab3, text="List",font=(("Helvetica", 14))).grid(row=2,column = 0)
+	if friends:
+		for f in friends:
+			user = get_user_first_name(f)+" "+get_user_last_name(f)
+			lbl19 = tk.Label(tab3, text=user,font=("Helvetica", 12),anchor='w',borderwidth=2, relief="groove").grid(row=row_count_3+1)
+			row_count_3 += 2
 ###################################################################################################################
 '''definition of redis based functions'''
 def create_user(u,p,f,l,a,g,lo):
 
-    print "User added"
-    id_count = r.exists("id_count")
-    if id_count > 0:
-        count = int(r.get("id_count"))
-    else:
-        count = 0
-        r.set("id_count", count)
+    r.incr("users.counter",amount=1)
+    count = r.get("users.counter")
+    r.set("id_count", count)
 
-    new_user = "user:" + str(count+1)
-    r.hset(new_user, "user_id", count+1)
+    new_user = "user:" + str(count)
+    r.hset(new_user, "user_id", count)
 
     r.hset(new_user,'username',u)
     r.hset(new_user,'password',p)
@@ -136,7 +161,16 @@ def create_user(u,p,f,l,a,g,lo):
     r.hset(new_user,'gender',g)
     r.hset(new_user,'location',lo)
     r.hset(new_user, 'statut','Hey, there! I am using Social Butterfly')
-    showPage(count+1)
+    if count != 1:
+    	print ("Sending default requests")
+    	request_friendship(count, 1)
+    	accept_friend_request(1,count)
+    #r.lpush(new_user,'updates','This is a default update!')
+    if u != "test":
+    	showPage(count)
+    	print("Created user", count)
+    else:
+    	print ("test user created")
 
 def user_connection(username, pwd):
 
@@ -158,7 +192,7 @@ def get_user_by_username(username):
             return user_id  #user id of the corresponding username 
         else:
             user_id+=1
-    return false # no user found with this username 
+    return False # no user found with this username 
 
 def get_user_by_id(user_id): 
 
@@ -214,55 +248,70 @@ def get_user_gender(user_id):
 	else:
 		return False
 
+def get_user_status(user_id): 
 
-def add_Friend(user_id, friend_id): 
+	statut = r.hget("user:" + str(user_id), "statut")
+
+	if statut != None:
+		return statut
+	else:
+		return False
+
+# def add_friend(user_id, friend_id): 
    
-    r.sadd('user:'+str(user_id)+".friends", friend_id)
-    r.sadd('user:'+str(friend_id)+".friends",user_id)
+#     r.sadd('user:'+str(user_id)+".friends", friend_id)
+#     r.sadd('user:'+str(friend_id)+".friends",user_id)
  
+def get_friends_list(user_id):
+
+	friends = r.smembers('user:'+str(user_id)+".friends")
+	return friends
 
 def  delete_friend(user_id, friend_id):
  
     r.srem('user:'+str(user_id)+".friends", friend_id)
     r.srem('user:'+str(friend_id)+".friends",user_id)
     
-def AskFriendship(user_id ,friend_id): 
+def request_friendship(user_id ,friend_id): 
 
-    r.sadd( r.sadd('user:'+str(friend_id)+".friendsRequestsWaiting",user_id))
-    r.sadd( r.sadd('user:'+str(user_id)+".friendsRequestsSent",friend_id))
+    r.lpush('user:'+str(user_id)+".friendsRequestsSent",friend_id)
+    r.lpush('user:'+str(user_id)+".friendsRequestsSent",friend_id)
 
-def AcceptRequest(user_id, friends_id):    
+def accept_friend_request(friend_id,user_id):    
 
      r.sadd('user:'+str(user_id)+".friends", friend_id)
-     r.srem('user:'+str(friend_id)+".friendsRequestsWaiting",friends_id)
-     r.srem('user:'+str(friends_id)+".friendsRequestsSent",user_id)
+     print(user_id, "and ", friend_id, " are now friends!")
+     #print(r.smembers('user:'+str(user_id)+".friends"))
 
-def DenyRequest(user_id, friends_id): 
+# def deny_friend_request(user_id, friend_id): 
 
-     r.srem('user:'+str(user_id)+".friendsRequestsWaiting",friends_id)
-     r.srem('user:'+str(friends_id)+".friendsRequestsSent",user_id)
+# 	r.lrem
+    # r.lrem('user:'+str(user_id)+".friendsRequestsWaiting",1,friend_id)
+     #r.('user:'+str(friends_id)+".friendsRequestsSent",user_id)
 
-def UpdateStatus(user_id, newStatut):
+def update_status(user_id, newStatut):
    
-     r.hset("user:"+str(user_id), "statut" ,str(newStatut) )
-     r.rpush('user:'+str(user_id)+".updates", str(newStatut))  #check this list for the latest status
+     r.hset("user:"+str(user_id), "statut" ,str(newStatut))
+     r.lpush('user:'+str(user_id)+".updates", str(newStatut))  #check this list for the latest status
 
 
-def NewPost(user_id, newPost): 
+def new_post(user_id, newPost): 
 
-     r.sadd( r.sadd('user:'+str(user_id)+".posts",newPost))
+	print("New post from", user_id)
+	user = 'user:'+str(user_id)
+	r.hset(user, 'posts', str(newPost))
+	r.lpush(user+".updates", str(newPost))
+	#displayPosts(user_id)
+	showPage(user_id)
+	#print(r.lrange(user+".updates",0,-1))
+
+def get_all_posts(user_id): 
+
+	#user = "user:" + str(user_id)
+	posts_user = r.lrange("user:"+str(user_id)+".updates",0,3)
+	return posts_user
 
 ###################################################################################################################
-## Adding widgets: labels, text boxes and buttons 
-
-# App Screen: Posts & Comment + Friendship List (Modifiable) + List of online friends + Personal Info (Modifiable) + Log Out 
-
-# Friendship List : Modifiable -> Received (accept/decline) | Sent (retract) | Connected (delete)
-
-# Personal Info (Editable)
-
-# Keep the Window running
-#window.mainloop() 
 
 ## Create a Window for the app interface
 
@@ -274,7 +323,13 @@ current_window = None
 
 #test user to check login as the app doesn't implement persistence
 create_user("test","test","Doctor","Who",1000,"female","TARDIS")
-
+uid = get_user_by_username("test")
+#test user to create posts
+update_status(uid,'Loving this site already! Hear my screwdriver go zzzzz...')
+new_post(uid,'Just spent my weekend at Barcelone! The planet, not the one on Earth. It was fantastic!')
+new_post(uid,'On my way to visit River Song! Wish me luck, gonna surprise her with my new face.')
 showHome(root)
-
 root.mainloop()
+
+ #cleaning the database for tests 
+r.flushdb()
