@@ -5,8 +5,9 @@ Structure: The repo consists of two files: app.py (with the basic gui) and backe
 
 ## To run the application 
 1. Install Tkinter.
-2. Run the app.py file.
-3. To test login, use the following credentials:
+2. Don't forget to run your Redis server before launching the application 
+3. Run the app.py file.
+4. To test login, use the following credentials:
 username = test
 password = test 
 
